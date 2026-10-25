@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Accounting System{% endblock %} · {{ setting.business_name if setting else "Accounting System" }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% if session.get('user_id') %}
+<div class="app-shell">
+<aside class="sidebar">
+  <div class="brand"><div class="brand-icon">₹</div><div><b>Accounting</b><small>System</small></div></div>
+  <nav>
+    <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint=='dashboard' }}">⌂ <span>Dashboard</span></a>
+    <a href="{{ url_for('accounts') }}" class="{{ 'active' if request.endpoint=='accounts' }}">▣ <span>Accounts</span></a>
+    <a href="{{ url_for('transactions') }}" class="{{ 'active' if request.endpoint=='transactions' }}">⇄ <span>Transactions</span></a>
+    <a href="{{ url_for('customers') }}" class="{{ 'active' if request.endpoint=='customers' }}">♙ <span>Customers</span></a>
+    <a href="{{ url_for('suppliers') }}" class="{{ 'active' if request.endpoint=='suppliers' }}">♙ <span>Suppliers</span></a>
+    <a href="{{ url_for('invoices') }}" class="{{ 'active' if request.endpoint=='invoices' }}">▤ <span>Invoices & Payments</span></a>
+    <a href="{{ url_for('reports') }}" class="{{ 'active' if request.endpoint=='reports' }}">▥ <span>Reports</span></a>
+    <a href="{{ url_for('settings') }}" class="{{ 'active' if request.endpoint=='settings' }}">⚙ <span>Settings</span></a>
+  </nav>
+  <div class="sidebar-bottom"><div class="user-chip"><div class="avatar">{{ session.get('user_name','A')[0] }}</div><div><b>{{ session.get('user_name') }}</b><small>Administrator</small></div></div><a class="logout" href="{{ url_for('logout') }}">↪ Logout</a></div>
+</aside>
+<main class="main">
+<header class="topbar"><button class="menu-btn" onclick="document.body.classList.toggle('nav-open')">☰</button><div><h1>{% block heading %}Dashboard{% endblock %}</h1><p>{% block subheading %}Financial overview{% endblock %}</p></div><div class="top-actions"><span class="date-pill">📅 {{ today.strftime('%d %b %Y') }}</span></div></header>
+{% with messages=get_flashed_messages(with_categories=true) %}{% if messages %}<div class="alerts">{% for cat,msg in messages %}<div class="alert {{cat}}">{{msg}}<button onclick="this.parentElement.remove()">×</button></div>{% endfor %}</div>{% endif %}{% endwith %}
+<div class="content">{% block content %}{% endblock %}</div>
+</main></div>
+{% else %}{% block auth_content %}{% endblock %}{% endif %}
+
+</body></html>

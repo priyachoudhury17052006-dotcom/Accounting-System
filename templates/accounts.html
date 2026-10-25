@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block heading %}Accounts{% endblock %}{% block subheading %}Create and manage accounts and balances{% endblock %}
+{% block content %}
+<div class="grid-2">
+<section class="panel"><div class="panel-head"><div><h3>Account List</h3><p>{{ accounts|length }} accounts</p></div></div>
+<div class="table-wrap"><table><thead><tr><th>Account</th><th>Type</th><th>Opening</th><th>Transactions</th><th>Actions</th></tr></thead><tbody>
+{% for a in accounts %}<tr><td><b>{{a.name}}</b><small>{{a.description}}</small></td><td><span class="badge neutral">{{a.type}}</span></td><td>₹{{'%.2f'|format(a.opening_balance)}}</td><td>{{a.transactions|length}}</td><td class="actions"><a class="icon-btn" href="{{url_for('ledger',account_id=a.id)}}" title="Ledger">▤</a><form method="post" action="{{url_for('delete_account',id=a.id)}}" onsubmit="return confirm('Delete this account?')"><button class="icon-btn danger-text">×</button></form></td></tr>{% endfor %}
+</tbody></table></div></section>
+<section class="panel sticky"><div class="panel-head"><div><h3>＋ Add Account</h3><p>Enter the basic account details.</p></div></div>
+<form method="post" class="form-grid"><label>Account Name<input name="name" placeholder="e.g. Petty Cash" required></label><label>Account Type<select name="type" required><option value="">Select type</option><option>Cash</option><option>Bank</option><option>Income</option><option>Expense</option><option>Asset</option><option>Liability</option></select></label><label>Opening Balance<input name="opening_balance" type="number" step="0.01" value="0"></label><label>Description<textarea name="description" rows="3" placeholder="Optional description"></textarea></label><button class="btn primary">Save Account</button></form></section>
+</div>
+{% endblock %}

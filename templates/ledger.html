@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block heading %}{{account.name}} Ledger{% endblock %}{% block subheading %}Transaction-wise account history and running balance{% endblock %}
+{% block content %}
+<div class="summary-banner"><div><span class="eyebrow">{{account.type|upper}} ACCOUNT</span><h2>{{account.name}}</h2><p>{{account.description}}</p></div><div class="big-number">₹{{'%.2f'|format(balance)}}</div></div>
+<section class="panel"><div class="panel-head"><div><h3>Ledger Entries</h3><p>Opening balance: ₹{{'%.2f'|format(account.opening_balance)}}</p></div><a class="btn secondary" href="{{url_for('transactions')}}">＋ Transaction</a></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Debit/Credit</th><th>Running Balance</th></tr></thead><tbody>{% for tx,run in entries %}<tr><td>{{tx.tx_date.strftime('%d-%m-%Y')}}</td><td><b>{{tx.description or tx.category}}</b><small>{{tx.reference}}</small></td><td><span class="badge {{tx.tx_type|lower}}">{{tx.tx_type}}</span></td><td>{{'+' if tx.tx_type=='Income' else '-'}}₹{{'%.2f'|format(tx.amount)}}</td><td><b>₹{{'%.2f'|format(run)}}</b></td></tr>{% else %}<tr><td colspan="5" class="empty">No entries in this account.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

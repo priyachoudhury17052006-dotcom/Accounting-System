@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block heading %}Settings{% endblock %}{% block subheading %}Manage global application preferences{% endblock %}
+{% block content %}
+<section class="panel settings-panel"><div class="panel-head"><div><h3>Business & Application Settings</h3><p>These preferences are stored persistently with the application.</p></div></div>
+<form method="post" class="form-grid"><label>Business Name<input name="business_name" value="{{settings.business_name}}" required></label><label>Owner / User Name<input name="owner_name" value="{{settings.owner_name}}"></label><label>Currency<select name="currency"><option {% if settings.currency=='₹' %}selected{% endif %}>₹</option><option {% if settings.currency=='$' %}selected{% endif %}>$</option><option {% if settings.currency=='€' %}selected{% endif %}>€</option></select></label><label>Date Format<select name="date_format"><option value="%d-%m-%Y">DD-MM-YYYY</option><option value="%Y-%m-%d">YYYY-MM-DD</option><option value="%d/%m/%Y">DD/MM/YYYY</option></select></label><label class="switch-row"><input type="checkbox" name="notifications" {% if settings.notifications %}checked{% endif %}><span>Enable in-app payment reminders</span></label><div><button class="btn primary">Save Settings</button></div></form>
+</section>
+<section class="panel"><div class="panel-head"><div><h3>System Information</h3><p>Current implementation scope</p></div></div><div class="info-grid"><div><b>Frontend</b><span>HTML + CSS + JavaScript</span></div><div><b>Backend</b><span>Python Flask</span></div><div><b>Database</b><span>SQLite (local persistent)</span></div><div><b>Architecture</b><span>Presentation / Application / Database layers</span></div></div></section>
+{% endblock %}

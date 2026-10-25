@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block heading %}Dashboard{% endblock %}{% block subheading %}A clear view of your current financial position{% endblock %}
+{% block content %}
+<div class="welcome"><div><span class="eyebrow">ACCOUNTING OVERVIEW</span><h2>Hello, {{ session.get('user_name','User').split()[0] }} 👋</h2><p>Track income, expenses, balances and recent financial activity from one place.</p></div><a class="btn primary" href="{{ url_for('transactions') }}#add">＋ Add Transaction</a></div>
+<div class="stats">
+<div class="stat-card green"><span>Total Income</span><strong>₹{{ '%.2f'|format(income) }}</strong><small>Recorded income</small></div>
+<div class="stat-card red"><span>Total Expenses</span><strong>₹{{ '%.2f'|format(expenses) }}</strong><small>Recorded expenses</small></div>
+<div class="stat-card blue"><span>Current Balance</span><strong>₹{{ '%.2f'|format(balance) }}</strong><small>Opening + income − expenses</small></div>
+<div class="stat-card purple"><span>Accounts</span><strong>{{ account_count }}</strong><small><a href="{{ url_for('accounts') }}">Manage accounts →</a></small></div>
+</div>
+<div class="grid-2">
+<section class="panel"><div class="panel-head"><div><h3>Recent Transactions</h3><p>Latest financial entries</p></div><a class="text-link" href="{{ url_for('transactions') }}">View all →</a></div>
+<div class="table-wrap"><table><thead><tr><th>Date</th><th>Transaction</th><th>Account</th><th>Type</th><th>Amount</th></tr></thead><tbody>
+{% for tx in transactions %}<tr><td>{{ tx.tx_date.strftime('%d %b') }}</td><td><b>{{ tx.description or tx.category }}</b><small>{{ tx.reference or 'No reference' }}</small></td><td>{{ tx.account.name }}</td><td><span class="badge {{tx.tx_type|lower}}">{{tx.tx_type}}</span></td><td class="{{'positive' if tx.tx_type=='Income' else 'negative'}}">{{ '+' if tx.tx_type=='Income' else '-' }}₹{{ '%.2f'|format(tx.amount) }}</td></tr>{% else %}<tr><td colspan="5" class="empty">No transactions yet.</td></tr>{% endfor %}
+</tbody></table></div></section>
+<section class="panel"><div class="panel-head"><div><h3>Pending Payments</h3><p>Invoices requiring attention</p></div><a class="text-link" href="{{ url_for('invoices') }}">Invoices →</a></div>
+{% for inv in invoices %}<div class="invoice-row"><div class="invoice-icon">₹</div><div class="grow"><b>{{ inv.invoice_no }}</b><small>{{ inv.customer.name if inv.customer else 'Customer' }} · Due {{ inv.due_date.strftime('%d %b %Y') }}</small></div><strong>₹{{ '%.2f'|format(inv.amount-inv.paid) }}</strong></div>{% else %}<div class="empty">No pending invoices.</div>{% endfor %}
+<div class="quick-links"><a href="{{url_for('accounts')}}">＋ Account</a><a href="{{url_for('customers')}}">＋ Customer</a><a href="{{url_for('invoices')}}">＋ Invoice</a><a href="{{url_for('reports')}}">▥ Reports</a></div></section>
+</div>
+{% endblock %}
