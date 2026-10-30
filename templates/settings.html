@@ -1,8 +1,69 @@
 {% extends "base.html" %}
-{% block heading %}Settings{% endblock %}{% block subheading %}Manage global application preferences{% endblock %}
+{% block title %}Settings — Accounting System{% endblock %}
+{% block heading %}Global Settings{% endblock %}
+{% block subheading %}Business information, preferences, currency, and notifications{% endblock %}
+
 {% block content %}
-<section class="panel settings-panel"><div class="panel-head"><div><h3>Business & Application Settings</h3><p>These preferences are stored persistently with the application.</p></div></div>
-<form method="post" class="form-grid"><label>Business Name<input name="business_name" value="{{settings.business_name}}" required></label><label>Owner / User Name<input name="owner_name" value="{{settings.owner_name}}"></label><label>Currency<select name="currency"><option {% if settings.currency=='₹' %}selected{% endif %}>₹</option><option {% if settings.currency=='$' %}selected{% endif %}>$</option><option {% if settings.currency=='€' %}selected{% endif %}>€</option></select></label><label>Date Format<select name="date_format"><option value="%d-%m-%Y">DD-MM-YYYY</option><option value="%Y-%m-%d">YYYY-MM-DD</option><option value="%d/%m/%Y">DD/MM/YYYY</option></select></label><label class="switch-row"><input type="checkbox" name="notifications" {% if settings.notifications %}checked{% endif %}><span>Enable in-app payment reminders</span></label><div><button class="btn primary">Save Settings</button></div></form>
-</section>
-<section class="panel"><div class="panel-head"><div><h3>System Information</h3><p>Current implementation scope</p></div></div><div class="info-grid"><div><b>Frontend</b><span>HTML + CSS + JavaScript</span></div><div><b>Backend</b><span>Python Flask</span></div><div><b>Database</b><span>SQLite (local persistent)</span></div><div><b>Architecture</b><span>Presentation / Application / Database layers</span></div></div></section>
+<div class="dashboard-grid-2">
+  <div class="panel">
+    <div class="panel-header">
+      <h3 class="panel-title">System Preferences</h3>
+      <p class="panel-desc">Configure business profile and localization parameters</p>
+    </div>
+
+    <form method="post" action="{{ url_for('settings') }}">
+      <div class="form-group mb-3">
+        <label>Business / Institution Name</label>
+        <input name="business_name" type="text" value="{{ settings.business_name }}" required>
+      </div>
+
+      <div class="form-group mb-3">
+        <label>Owner / Administrator Name</label>
+        <input name="owner_name" type="text" value="{{ settings.owner_name }}">
+      </div>
+
+      <div class="form-row-2 mb-3">
+        <div class="form-group">
+          <label>Currency Symbol</label>
+          <input name="currency" type="text" value="{{ settings.currency }}">
+        </div>
+        <div class="form-group">
+          <label>Date Format</label>
+          <select name="date_format">
+            <option value="%d-%m-%Y" {% if settings.date_format == '%d-%m-%Y' %}selected{% endif %}>DD-MM-YYYY</option>
+            <option value="%Y-%m-%d" {% if settings.date_format == '%Y-%m-%d' %}selected{% endif %}>YYYY-MM-DD</option>
+            <option value="%m/%d/%Y" {% if settings.date_format == '%m/%d/%Y' %}selected{% endif %}>MM/DD/YYYY</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group mb-4">
+        <label class="checkbox-label">
+          <input name="notifications" type="checkbox" value="1" {% if settings.notifications %}checked{% endif %}>
+          <span>Enable pending payment alerts & reminder notifications</span>
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Save Settings</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h3 class="panel-title">About This System</h3>
+      <p class="panel-desc">Academic & deployment metadata</p>
+    </div>
+
+    <div class="meta-info-list">
+      <div class="meta-row"><span>Project Title:</span> <strong>Bank Accounting System</strong></div>
+      <div class="meta-row"><span>Student Name:</span> <strong>Priya Choudhury</strong></div>
+      <div class="meta-row"><span>Seat Number:</span> <strong>510513055</strong></div>
+      <div class="meta-row"><span>Degree:</span> <strong>B.Sc. (Computer Science), Semester V</strong></div>
+      <div class="meta-row"><span>Affiliation:</span> <strong>Mumbai University (2026-2027)</strong></div>
+      <div class="meta-row"><span>Project Guide:</span> <strong>Prof. Mrs. Sahaya Jeicy</strong></div>
+      <div class="meta-row"><span>College:</span> <strong>RP Institute of Hospitality & Management</strong></div>
+      <div class="meta-row"><span>Persistence Mode:</span> <code>SQLite (Zero-config Pen Drive) / PostgreSQL (Cloud)</code></div>
+    </div>
+  </div>
+</div>
 {% endblock %}

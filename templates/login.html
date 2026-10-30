@@ -1,9 +1,62 @@
 {% extends "base.html" %}
-{% block title %}Login{% endblock %}
+{% block title %}Login — Accounting System{% endblock %}
 {% block auth_content %}
-<div class="login-page">
-  <div class="login-art"><div class="art-card"><div class="brand-icon big">₹</div><h1>Accounting<br><span>System</span></h1><p>Simple, organized financial record management for your business.</p><div class="mini-stats"><span>Income tracking</span><span>Expense control</span><span>Reports</span></div></div></div>
-  <div class="login-panel"><div class="login-box"><div class="brand centered"><div class="brand-icon">₹</div><div><b>Accounting System</b><small>Secure workspace</small></div></div><h2>Welcome back</h2><p class="muted">Sign in to manage your accounting records.</p>
-  <form method="post"><label>Username<input name="username" placeholder="Enter username" required autofocus></label><label>Password<input name="password" type="password" placeholder="Enter password" required></label><button class="btn primary full">Sign in →</button></form><div class="demo">Demo access: <b>admin</b> / <b>admin123</b></div></div></div>
+<div class="login-wrapper">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-logo-circle">₹</div>
+      <h2>Accounting System</h2>
+      <p class="login-subtitle">Sign in to manage your accounts</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="login-alerts">
+          {% for cat, msg in messages %}
+            <div class="alert alert-{{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('login') }}" class="login-form">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input 
+          id="username" 
+          name="username" 
+          type="text" 
+          placeholder="accountant01" 
+          value="accountant01" 
+          required 
+          autofocus
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input 
+          id="password" 
+          name="password" 
+          type="password" 
+          placeholder="••••••••••" 
+          value="password123" 
+          required
+        >
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Login</button>
+
+      <div class="login-footer">
+        <a href="#forgot" onclick="alert('Default demo credentials:\n\nAdmin: admin / admin123\nAccountant: accountant01 / password123')" class="forgot-link">Forgot password?</a>
+      </div>
+    </form>
+
+    <div class="demo-credentials-box">
+      <strong>Demo Accounts:</strong>
+      <div><span>Accountant:</span> <code>accountant01</code> / <code>password123</code></div>
+      <div><span>Admin:</span> <code>admin</code> / <code>admin123</code></div>
+    </div>
+  </div>
 </div>
 {% endblock %}

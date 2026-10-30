@@ -1,23 +1,351 @@
 {% extends "base.html" %}
-{% block heading %}Transactions{% endblock %}{% block subheading %}Record, search and manage financial transactions{% endblock %}
+{% block title %}Transactions — Accounting System{% endblock %}
+{% block heading %}Transactions{% endblock %}
+{% block subheading %}Record, validate, edit, and search financial debit/credit entries{% endblock %}
+
 {% block content %}
-<section class="panel" id="add"><div class="panel-head"><div><h3>＋ New Transaction</h3><p>Validated entries automatically become part of the ledger and reports.</p></div></div>
-<form method="post" class="form-grid four">
-<label>Date<input name="tx_date" type="date" value="{{today.isoformat()}}" required></label>
-<label>Type<select name="tx_type" required><option>Income</option><option>Expense</option><option>Transfer</option></select></label>
-<label>Amount<input name="amount" type="number" min="0.01" step="0.01" required placeholder="0.00"></label>
-<label>Account<select name="account_id" required><option value="">Select account</option>{% for a in accounts %}<option value="{{a.id}}">{{a.name}}</option>{% endfor %}</select></label>
-<label>Category<input name="category" value="General" placeholder="Sales, Rent, Materials..."></label>
-<label>Payment Method<select name="payment_method"><option>Cash</option><option>Bank Transfer</option><option>UPI</option><option>Card</option><option>Cheque</option></select></label>
-<label>Customer<select name="customer_id"><option value="">None</option>{% for c in customers %}<option value="{{c.id}}">{{c.name}}</option>{% endfor %}</select></label>
-<label>Supplier<select name="supplier_id"><option value="">None</option>{% for s in suppliers %}<option value="{{s.id}}">{{s.name}}</option>{% endfor %}</select></label>
-<label class="wide">Description<input name="description" placeholder="Describe the transaction"></label>
-<label>Reference No.<input name="reference" placeholder="INV-001"></label>
-<div class="form-action"><button class="btn primary">Save Transaction</button></div>
-</form></section>
-<section class="panel"><div class="panel-head"><div><h3>Transaction History</h3><p>Search and filter your accounting records.</p></div><a class="btn secondary" href="{{url_for('export_report')}}">↓ Export CSV</a></div>
-<form class="filters"><input name="search" value="{{filter_search}}" placeholder="Search description, category or reference..."><select name="type"><option value="">All types</option><option {% if filter_type=='Income' %}selected{% endif %}>Income</option><option {% if filter_type=='Expense' %}selected{% endif %}>Expense</option><option {% if filter_type=='Transfer' %}selected{% endif %}>Transfer</option></select><select name="account_id"><option value="">All accounts</option>{% for a in accounts %}<option value="{{a.id}}" {% if filter_account==a.id|string %}selected{% endif %}>{{a.name}}</option>{% endfor %}</select><button class="btn secondary">Filter</button><a class="btn ghost" href="{{url_for('transactions')}}">Clear</a></form>
-<div class="table-wrap"><table><thead><tr><th>Date</th><th>Description</th><th>Account</th><th>Category</th><th>Type</th><th>Amount</th><th></th></tr></thead><tbody>
-{% for tx in transactions %}<tr><td>{{tx.tx_date.strftime('%d-%m-%Y')}}</td><td><b>{{tx.description or '—'}}</b><small>{{tx.payment_method}} · {{tx.reference or 'No ref'}}</small></td><td>{{tx.account.name}}</td><td>{{tx.category}}</td><td><span class="badge {{tx.tx_type|lower}}">{{tx.tx_type}}</span></td><td class="{{'positive' if tx.tx_type=='Income' else 'negative'}}">{{ '+' if tx.tx_type=='Income' else '-' }}₹{{'%.2f'|format(tx.amount)}}</td><td><form method="post" action="{{url_for('delete_transaction',id=tx.id)}}" onsubmit="return confirm('Delete this transaction?')"><button class="icon-btn danger-text">×</button></form></td></tr>{% else %}<tr><td colspan="7" class="empty">No matching transactions.</td></tr>{% endfor %}
-</tbody></table></div></section>
+<!-- Top Section: Add Transaction Interface with Validation Card (Figure 6.4) -->
+<div class="transaction-entry-grid" id="add-transaction-panel">
+  <!-- Left Side: Transaction Entry Form -->
+  <div class="panel form-panel">
+    <div class="panel-header">
+      <div>
+        <h3 class="panel-title">Add Transaction</h3>
+        <p class="panel-desc">Enter financial details to update account balance and ledger</p>
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('transactions') }}" id="txForm" class="tx-form">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="tx_date">Date *</label>
+          <input id="tx_date" name="tx_date" type="date" value="{{ today.isoformat() }}" required oninput="validateForm()">
+        </div>
+
+        <div class="form-group">
+          <label for="tx_account">Account *</label>
+          <select id="tx_account" name="account_id" required onchange="validateForm()">
+            <option value="">Select account</option>
+            {% for a in accounts %}
+              <option value="{{ a.id }}">{{ a.name }} ({{ a.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="tx_type">Transaction Type *</label>
+          <select id="tx_type" name="tx_type" required onchange="updateCategoryOptions(); validateForm()">
+            <option value="Income">Income</option>
+            <option value="Expense" selected>Expense</option>
+            <option value="Transfer">Transfer</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="tx_category">Category</label>
+          <input id="tx_category" name="category" list="category-suggestions" placeholder="Sales, Materials, Office..." value="Materials" oninput="validateForm()">
+          <datalist id="category-suggestions">
+            <option value="Sales">
+            <option value="Materials">
+            <option value="Office">
+            <option value="Salaries">
+            <option value="Rent">
+            <option value="Utilities">
+            <option value="Travel">
+          </datalist>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="tx_amount">Amount (₹) *</label>
+          <input id="tx_amount" name="amount" type="number" step="0.01" min="0.01" placeholder="50000.00" required oninput="validateForm()">
+        </div>
+
+        <div class="form-group">
+          <label for="tx_party">Customer / Supplier</label>
+          <select id="tx_party" name="customer_id">
+            <option value="">Select party (optional)</option>
+            <optgroup label="Customers">
+              {% for c in customers %}
+                <option value="{{ c.id }}">{{ c.name }} (Customer)</option>
+              {% endfor %}
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label for="tx_payment">Payment Method</label>
+          <select id="tx_payment" name="payment_method">
+            <option value="Cash">Cash</option>
+            <option value="Bank Transfer" selected>Bank Transfer</option>
+            <option value="UPI">UPI</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Card">Card</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="tx_ref">Reference No.</label>
+          <input id="tx_ref" name="reference" type="text" placeholder="TXN-2026-0101">
+        </div>
+      </div>
+
+      <div class="form-group mb-4">
+        <label for="tx_desc">Description</label>
+        <input id="tx_desc" name="description" type="text" placeholder="Sales payment received" oninput="validateForm()">
+      </div>
+
+      <div class="form-actions-bar">
+        <button type="submit" class="btn btn-save" id="saveBtn">Save</button>
+        <button type="reset" class="btn btn-cancel" onclick="setTimeout(validateForm, 50)">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Right Side: Validation Checklist Card (Figure 6.4) -->
+  <div class="panel validation-panel">
+    <div class="panel-header">
+      <h3 class="panel-title">Validation</h3>
+    </div>
+    <div class="validation-checklist">
+      <div class="val-item" id="val_fields">
+        <span class="val-check">✓</span>
+        <span class="val-text">Mandatory fields filled</span>
+      </div>
+      <div class="val-item" id="val_amount">
+        <span class="val-check">✓</span>
+        <span class="val-text">Amount is a valid number</span>
+      </div>
+      <div class="val-item" id="val_account">
+        <span class="val-check">✓</span>
+        <span class="val-text">Account selected</span>
+      </div>
+      <div class="val-item active" id="val_balance">
+        <span class="val-check">✓</span>
+        <span class="val-text">Balance will update after save</span>
+      </div>
+    </div>
+    <div class="validation-note">
+      <small class="text-muted">Validated entries are committed to the double-entry ledger and update real-time reports instantly.</small>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Section: Transaction History & Filters (TC-09, TC-10, TC-11) -->
+<div class="panel mt-4">
+  <div class="panel-header">
+    <div>
+      <h3 class="panel-title">Transaction History</h3>
+      <p class="panel-desc">Search, filter, edit, and audit financial records</p>
+    </div>
+    <a href="{{ url_for('export_report') }}" class="btn btn-outline btn-sm">Export CSV</a>
+  </div>
+
+  <!-- Filters Form (TC-09) -->
+  <form method="get" action="{{ url_for('transactions') }}" class="filter-strip">
+    <div class="filter-input-wrap">
+      <input name="search" type="text" placeholder="Search description, category, reference..." value="{{ filter_search }}">
+    </div>
+
+    <div class="filter-select-wrap">
+      <select name="type">
+        <option value="">All Types</option>
+        <option value="Income" {% if filter_type == 'Income' %}selected{% endif %}>Income</option>
+        <option value="Expense" {% if filter_type == 'Expense' %}selected{% endif %}>Expense</option>
+        <option value="Transfer" {% if filter_type == 'Transfer' %}selected{% endif %}>Transfer</option>
+      </select>
+    </div>
+
+    <div class="filter-select-wrap">
+      <select name="account_id">
+        <option value="">All Accounts</option>
+        {% for a in accounts %}
+          <option value="{{ a.id }}" {% if filter_account == a.id|string %}selected{% endif %}>{{ a.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+    {% if filter_search or filter_type or filter_account %}
+      <a href="{{ url_for('transactions') }}" class="btn btn-ghost btn-sm">Clear</a>
+    {% endif %}
+  </form>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Account</th>
+          <th>Type</th>
+          <th>Category</th>
+          <th>Description</th>
+          <th class="text-right">Amount</th>
+          <th class="text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for tx in transactions %}
+          <tr>
+            <td>{{ tx.tx_date.strftime('%d-%m-%Y') }}</td>
+            <td><span class="account-pill">{{ tx.account.name }}</span></td>
+            <td><span class="badge badge-{{ tx.tx_type|lower }}">{{ tx.tx_type }}</span></td>
+            <td>{{ tx.category }}</td>
+            <td>
+              <strong>{{ tx.description or tx.category }}</strong>
+              <small class="text-muted d-block">{{ tx.reference or 'No reference' }} • {{ tx.payment_method }}</small>
+            </td>
+            <td class="text-right font-bold {{ 'text-positive' if tx.tx_type == 'Income' else 'text-negative' }}">
+              {{ '+' if tx.tx_type == 'Income' else '-' }} ₹ {{ "{:,.0f}".format(tx.amount) }}
+            </td>
+            <td class="text-right actions-cell">
+              <button 
+                type="button" 
+                class="btn-link-action edit-btn"
+                onclick="openEditTxModal('{{ tx.id }}', '{{ tx.tx_date.isoformat() }}', '{{ tx.account_id }}', '{{ tx.tx_type }}', '{{ tx.amount }}', '{{ tx.category|escape }}', '{{ tx.description|escape }}', '{{ tx.payment_method|escape }}', '{{ tx.reference|escape }}')"
+              >Edit</button>
+              <span class="action-sep">|</span>
+              <form method="post" action="{{ url_for('delete_transaction', id=tx.id) }}" class="d-inline" onsubmit="return confirm('Delete transaction #{{ tx.id }}?')">
+                <button type="submit" class="btn-link-action text-danger">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">No matching transactions found.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Edit Transaction Modal (Supports TC-10: Edit an existing transaction) -->
+<div id="editTxModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h4>Edit Transaction</h4>
+      <button type="button" class="close-btn" onclick="closeEditTxModal()">&times;</button>
+    </div>
+    <form id="editTxForm" method="post" action="">
+      <div class="modal-body">
+        <div class="form-row-2 mb-3">
+          <div class="form-group">
+            <label>Date</label>
+            <input id="modal_tx_date" name="tx_date" type="date" required>
+          </div>
+          <div class="form-group">
+            <label>Account</label>
+            <select id="modal_tx_account" name="account_id" required>
+              {% for a in accounts %}
+                <option value="{{ a.id }}">{{ a.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-2 mb-3">
+          <div class="form-group">
+            <label>Type</label>
+            <select id="modal_tx_type" name="tx_type" required>
+              <option value="Income">Income</option>
+              <option value="Expense">Expense</option>
+              <option value="Transfer">Transfer</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Amount (₹)</label>
+            <input id="modal_tx_amount" name="amount" type="number" step="0.01" min="0.01" required>
+          </div>
+        </div>
+
+        <div class="form-row-2 mb-3">
+          <div class="form-group">
+            <label>Category</label>
+            <input id="modal_tx_cat" name="category" type="text">
+          </div>
+          <div class="form-group">
+            <label>Payment Method</label>
+            <select id="modal_tx_payment" name="payment_method">
+              <option value="Cash">Cash</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="UPI">UPI</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Card">Card</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group mb-3">
+          <label>Reference No.</label>
+          <input id="modal_tx_ref" name="reference" type="text">
+        </div>
+
+        <div class="form-group mb-3">
+          <label>Description</label>
+          <input id="modal_tx_desc" name="description" type="text">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeEditTxModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Update Transaction</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function validateForm() {
+    const acc = document.getElementById('tx_account').value;
+    const rawAmt = document.getElementById('tx_amount').value;
+    const amt = parseFloat(rawAmt);
+    const date = document.getElementById('tx_date').value;
+
+    const elFields = document.getElementById('val_fields');
+    const elAmount = document.getElementById('val_amount');
+    const elAccount = document.getElementById('val_account');
+
+    if (acc) {
+      elAccount.classList.add('active');
+    } else {
+      elAccount.classList.remove('active');
+    }
+
+    if (!isNaN(amt) && amt > 0) {
+      elAmount.classList.add('active');
+    } else {
+      elAmount.classList.remove('active');
+    }
+
+    if (acc && !isNaN(amt) && amt > 0 && date) {
+      elFields.classList.add('active');
+    } else {
+      elFields.classList.remove('active');
+    }
+  }
+
+  function openEditTxModal(id, date, accId, type, amt, cat, desc, method, ref) {
+    document.getElementById('editTxForm').action = "/transactions/edit/" + id;
+    document.getElementById('modal_tx_date').value = date;
+    document.getElementById('modal_tx_account').value = accId;
+    document.getElementById('modal_tx_type').value = type;
+    document.getElementById('modal_tx_amount').value = amt;
+    document.getElementById('modal_tx_cat').value = cat || '';
+    document.getElementById('modal_tx_desc').value = desc || '';
+    document.getElementById('modal_tx_payment').value = method || 'Cash';
+    document.getElementById('modal_tx_ref').value = ref || '';
+    document.getElementById('editTxModal').style.display = 'flex';
+  }
+
+  function closeEditTxModal() {
+    document.getElementById('editTxModal').style.display = 'none';
+  }
+
+  document.addEventListener('DOMContentLoaded', validateForm);
+</script>
 {% endblock %}

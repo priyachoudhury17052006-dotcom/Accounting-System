@@ -1,7 +1,149 @@
 {% extends "base.html" %}
-{% block heading %}Reports{% endblock %}{% block subheading %}Financial summaries generated from stored accounting information{% endblock %}
+{% block title %}Financial Reports — Accounting System{% endblock %}
+{% block heading %}Financial Reports{% endblock %}
+{% block subheading %}Audit summaries, profit & loss, expense breakdowns, and balance statements{% endblock %}
+
 {% block content %}
-<div class="stats"><div class="stat-card green"><span>Total Income</span><strong>₹{{'%.2f'|format(income)}}</strong></div><div class="stat-card red"><span>Total Expenses</span><strong>₹{{'%.2f'|format(expenses)}}</strong></div><div class="stat-card blue"><span>Net Position</span><strong>₹{{'%.2f'|format(balance)}}</strong></div></div>
-<div class="grid-2"><section class="panel"><div class="panel-head"><div><h3>Expense by Category</h3><p>Breakdown of recorded expenses</p></div><a class="btn secondary" href="{{url_for('export_report')}}">↓ CSV</a></div>{% for cat,val in bycat %}<div class="bar-row"><div><span>{{cat}}</span><b>₹{{'%.2f'|format(val)}}</b></div><div class="bar"><span style="width:{{ ((val/expenses)*100 if expenses else 0)|round(1) }}%"></span></div></div>{% else %}<div class="empty">No expense data available.</div>{% endfor %}</section>
-<section class="panel"><div class="panel-head"><div><h3>Account Balances</h3><p>Opening balance plus recorded income/expense activity</p></div></div>{% for a in accounts %}{% set ns=namespace(v=a.opening_balance) %}{% for t in a.transactions %}{% if t.tx_type=='Income' %}{% set ns.v=ns.v+t.amount %}{% elif t.tx_type=='Expense' %}{% set ns.v=ns.v-t.amount %}{% endif %}{% endfor %}<div class="balance-row"><div class="avatar small">{{a.name[0]}}</div><div class="grow"><b>{{a.name}}</b><small>{{a.type}}</small></div><strong>₹{{'%.2f'|format(ns.v)}}</strong></div>{% endfor %}</section></div>
+<!-- Report Navigation Tabs & Period Bar (Figure 6.6) -->
+<div class="report-tabs-bar">
+  <div class="report-tabs">
+    <a href="{{ url_for('reports', tab='income_statement') }}" class="report-tab-btn {{ 'active' if active_tab == 'income_statement' else '' }}">Income Statement</a>
+    <a href="{{ url_for('reports', tab='balance_summary') }}" class="report-tab-btn {{ 'active' if active_tab == 'balance_summary' else '' }}">Balance Summary</a>
+    <a href="{{ url_for('reports', tab='transaction_history') }}" class="report-tab-btn {{ 'active' if active_tab == 'transaction_history' else '' }}">Transaction History</a>
+  </div>
+  <div class="report-period-pill">
+    Period: {{ period_label }}
+  </div>
+</div>
+
+{% if active_tab == 'income_statement' %}
+  <!-- Income Statement View (Figure 6.6) -->
+  <div class="dashboard-grid-2 mt-4">
+    <!-- Profit and Loss Summary Card -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3 class="panel-title">Profit and Loss Summary</h3>
+      </div>
+      
+      <div class="pnl-list">
+        <div class="pnl-row">
+          <span>Total Income</span>
+          <strong class="text-positive">₹ {{ "{:,.0f}".format(income) }}</strong>
+        </div>
+        <div class="pnl-row">
+          <span>Total Expenses</span>
+          <strong class="text-negative">₹ {{ "{:,.0f}".format(expenses) }}</strong>
+        </div>
+        <div class="pnl-divider"></div>
+        <div class="pnl-row pnl-total">
+          <span>Net Profit</span>
+          <strong class="text-primary">₹ {{ "{:,.0f}".format(net_profit) }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expense Breakdown Card -->
+    <div class="panel">
+      <div class="panel-header">
+        <h3 class="panel-title">Expense Breakdown</h3>
+      </div>
+
+      <div class="expense-breakdown-list">
+        {% for cat, val in bycat %}
+          {% set pct = ((val / expenses * 100) if expenses > 0 else 0)|round %}
+          <div class="expense-cat-row">
+            <div class="cat-label-row">
+              <span class="cat-name">{{ cat }}</span>
+              <span class="cat-amount">₹ {{ "{:,.0f}".format(val) }} ({{ pct }}%)</span>
+            </div>
+            <div class="meter-track">
+              <div class="meter-fill expense-bar-fill" style="width: {{ pct }}%;"></div>
+            </div>
+          </div>
+        {% else %}
+          <div class="text-muted text-center py-4">No expenses recorded for this period.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+{% elif active_tab == 'balance_summary' %}
+  <!-- Balance Summary View -->
+  <div class="panel mt-4">
+    <div class="panel-header">
+      <h3 class="panel-title">Balance Summary by Account</h3>
+      <p class="panel-desc">All assets, cash, bank, and liability account balances</p>
+    </div>
+
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Account Code</th>
+            <th>Account Name</th>
+            <th>Category / Type</th>
+            <th class="text-right">Opening Balance</th>
+            <th class="text-right">Current Book Balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in accounts %}
+            <tr>
+              <td><code>{{ a.code }}</code></td>
+              <td><strong>{{ a.name }}</strong></td>
+              <td><span class="badge badge-type">{{ a.type }}</span></td>
+              <td class="text-right">₹ {{ "{:,.0f}".format(a.opening_balance) }}</td>
+              <td class="text-right font-bold">₹ {{ "{:,.0f}".format(a.current_balance()) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% elif active_tab == 'transaction_history' %}
+  <!-- Transaction History Report Tab -->
+  <div class="panel mt-4">
+    <div class="panel-header">
+      <h3 class="panel-title">Complete Transaction Audit Trail</h3>
+      <p class="panel-desc">All historical recorded debit and credit transactions</p>
+    </div>
+
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Account</th>
+            <th>Type</th>
+            <th>Category</th>
+            <th>Description</th>
+            <th class="text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tx in transactions %}
+            <tr>
+              <td>{{ tx.tx_date.strftime('%d-%m-%Y') }}</td>
+              <td>{{ tx.account.name }}</td>
+              <td><span class="badge badge-{{ tx.tx_type|lower }}">{{ tx.tx_type }}</span></td>
+              <td>{{ tx.category }}</td>
+              <td>{{ tx.description or '—' }}</td>
+              <td class="text-right font-bold {{ 'text-positive' if tx.tx_type == 'Income' else 'text-negative' }}">
+                {{ '+' if tx.tx_type == 'Income' else '-' }} ₹ {{ "{:,.0f}".format(tx.amount) }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<!-- Action Buttons Strip (Figure 6.6) -->
+<div class="report-action-buttons mt-4">
+  <button type="button" class="btn btn-dark" onclick="window.print()">Export PDF</button>
+  <button type="button" class="btn btn-secondary" onclick="window.print()">Print</button>
+  <a href="{{ url_for('export_report') }}" class="btn btn-outline">Export CSV</a>
+</div>
 {% endblock %}

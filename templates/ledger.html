@@ -1,6 +1,121 @@
 {% extends "base.html" %}
-{% block heading %}{{account.name}} Ledger{% endblock %}{% block subheading %}Transaction-wise account history and running balance{% endblock %}
+{% block title %}Ledger — {{ account.name }} — Accounting System{% endblock %}
+{% block heading %}Ledger - {{ account.name }}{% endblock %}
+{% block subheading %}Account: {{ account.name }} ({{ account.code }}) &nbsp;|&nbsp; Period: {{ period_label }}{% endblock %}
+
 {% block content %}
-<div class="summary-banner"><div><span class="eyebrow">{{account.type|upper}} ACCOUNT</span><h2>{{account.name}}</h2><p>{{account.description}}</p></div><div class="big-number">₹{{'%.2f'|format(balance)}}</div></div>
-<section class="panel"><div class="panel-head"><div><h3>Ledger Entries</h3><p>Opening balance: ₹{{'%.2f'|format(account.opening_balance)}}</p></div><a class="btn secondary" href="{{url_for('transactions')}}">＋ Transaction</a></div><div class="table-wrap"><table><thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Debit/Credit</th><th>Running Balance</th></tr></thead><tbody>{% for tx,run in entries %}<tr><td>{{tx.tx_date.strftime('%d-%m-%Y')}}</td><td><b>{{tx.description or tx.category}}</b><small>{{tx.reference}}</small></td><td><span class="badge {{tx.tx_type|lower}}">{{tx.tx_type}}</span></td><td>{{'+' if tx.tx_type=='Income' else '-'}}₹{{'%.2f'|format(tx.amount)}}</td><td><b>₹{{'%.2f'|format(run)}}</b></td></tr>{% else %}<tr><td colspan="5" class="empty">No entries in this account.</td></tr>{% endfor %}</tbody></table></div></section>
+<!-- Top Ledger Control Bar -->
+<div class="page-top-bar">
+  <div class="account-switcher">
+    <label for="ledger_acc_switch"><strong>Select Ledger:</strong></label>
+    <select id="ledger_acc_switch" onchange="location.href='/ledger/' + this.value" class="select-inline">
+      {% for a in all_accounts %}
+        <option value="{{ a.id }}" {% if a.id == account.id %}selected{% endif %}>
+          {{ a.name }} ({{ a.code }}) — {{ a.type }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="ledger-actions">
+    <a href="{{ url_for('transactions') }}#add-transaction-panel" class="btn btn-primary btn-sm">+ Add Transaction</a>
+    <button onclick="window.print()" class="btn btn-secondary btn-sm">Print Ledger</button>
+  </div>
+</div>
+
+<!-- Ledger Summary Cards -->
+<div class="metrics-grid mb-4">
+  <div class="metric-card card-balance">
+    <div class="metric-label">Opening Balance</div>
+    <div class="metric-value">₹ {{ "{:,.0f}".format(opening_balance) }}</div>
+    <div class="metric-subtext">Initial capital / carryover</div>
+  </div>
+
+  <div class="metric-card card-income">
+    <div class="metric-label">Total Debit (+)</div>
+    <div class="metric-value">₹ {{ "{:,.0f}".format(total_debit) }}</div>
+    <div class="metric-subtext">Receipts & incoming</div>
+  </div>
+
+  <div class="metric-card card-expenses">
+    <div class="metric-label">Total Credit (-)</div>
+    <div class="metric-value">₹ {{ "{:,.0f}".format(total_credit) }}</div>
+    <div class="metric-subtext">Disbursements & outgoing</div>
+  </div>
+
+  <div class="metric-card card-pending">
+    <div class="metric-label">Closing Balance</div>
+    <div class="metric-value">₹ {{ "{:,.0f}".format(closing_balance) }}</div>
+    <div class="metric-subtext">Net current book balance</div>
+  </div>
+</div>
+
+<!-- Main General Ledger Table (Figure 6.5) -->
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <h3 class="panel-title">General Ledger Entries</h3>
+      <p class="panel-desc">Double-entry audit trail for {{ account.name }}</p>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table ledger-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Particulars</th>
+          <th>Ref No.</th>
+          <th class="text-right">Debit</th>
+          <th class="text-right">Credit</th>
+          <th class="text-right">Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Opening Balance Row (Figure 6.5) -->
+        <tr class="ledger-opening-row">
+          <td>01-10-2026</td>
+          <td><strong>Opening Balance</strong></td>
+          <td>—</td>
+          <td class="text-right">—</td>
+          <td class="text-right">—</td>
+          <td class="text-right font-bold">₹ {{ "{:,.0f}".format(opening_balance) }}</td>
+        </tr>
+
+        <!-- Transaction Rows -->
+        {% for e in entries %}
+          <tr>
+            <td>{{ e.date.strftime('%d-%m-%Y') }}</td>
+            <td>
+              <strong>{{ e.particulars }}</strong>
+              <small class="text-muted d-block">{{ e.payment_method }}</small>
+            </td>
+            <td><code>{{ e.ref_no }}</code></td>
+            <td class="text-right {{ 'text-positive font-bold' if e.debit > 0 else 'text-muted' }}">
+              {{ '₹ {:,.0f}'.format(e.debit) if e.debit > 0 else '—' }}
+            </td>
+            <td class="text-right {{ 'text-negative font-bold' if e.credit > 0 else 'text-muted' }}">
+              {{ '₹ {:,.0f}'.format(e.credit) if e.credit > 0 else '—' }}
+            </td>
+            <td class="text-right font-bold">
+              ₹ {{ "{:,.0f}".format(e.balance) }}
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">No entries recorded for this account.</td>
+          </tr>
+        {% endfor %}
+
+        <!-- Closing Balance Summary Row (Figure 6.5) -->
+        <tr class="ledger-closing-row">
+          <td colspan="3"><strong>Closing Balance</strong></td>
+          <td class="text-right font-bold text-positive">₹ {{ "{:,.0f}".format(total_debit) }}</td>
+          <td class="text-right font-bold text-negative">₹ {{ "{:,.0f}".format(total_credit) }}</td>
+          <td class="text-right font-bold text-primary">₹ {{ "{:,.0f}".format(closing_balance) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

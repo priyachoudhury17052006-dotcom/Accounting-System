@@ -1,12 +1,169 @@
 {% extends "base.html" %}
-{% block heading %}Accounts{% endblock %}{% block subheading %}Create and manage accounts and balances{% endblock %}
+{% block title %}Accounts — Accounting System{% endblock %}
+{% block heading %}Accounts{% endblock %}
+{% block subheading %}Create, view, update, and manage chart of accounts{% endblock %}
+
 {% block content %}
-<div class="grid-2">
-<section class="panel"><div class="panel-head"><div><h3>Account List</h3><p>{{ accounts|length }} accounts</p></div></div>
-<div class="table-wrap"><table><thead><tr><th>Account</th><th>Type</th><th>Opening</th><th>Transactions</th><th>Actions</th></tr></thead><tbody>
-{% for a in accounts %}<tr><td><b>{{a.name}}</b><small>{{a.description}}</small></td><td><span class="badge neutral">{{a.type}}</span></td><td>₹{{'%.2f'|format(a.opening_balance)}}</td><td>{{a.transactions|length}}</td><td class="actions"><a class="icon-btn" href="{{url_for('ledger',account_id=a.id)}}" title="Ledger">▤</a><form method="post" action="{{url_for('delete_account',id=a.id)}}" onsubmit="return confirm('Delete this account?')"><button class="icon-btn danger-text">×</button></form></td></tr>{% endfor %}
-</tbody></table></div></section>
-<section class="panel sticky"><div class="panel-head"><div><h3>＋ Add Account</h3><p>Enter the basic account details.</p></div></div>
-<form method="post" class="form-grid"><label>Account Name<input name="name" placeholder="e.g. Petty Cash" required></label><label>Account Type<select name="type" required><option value="">Select type</option><option>Cash</option><option>Bank</option><option>Income</option><option>Expense</option><option>Asset</option><option>Liability</option></select></label><label>Opening Balance<input name="opening_balance" type="number" step="0.01" value="0"></label><label>Description<textarea name="description" rows="3" placeholder="Optional description"></textarea></label><button class="btn primary">Save Account</button></form></section>
+<div class="page-top-bar">
+  <div class="stats-mini-pills">
+    <span class="pill-badge">Total Accounts: <strong>{{ accounts|length }}</strong></span>
+  </div>
+  <a href="#quick-add-form" class="btn btn-primary" onclick="document.getElementById('acc_name').focus();">+ Add Account</a>
 </div>
+
+<!-- Main Accounts Table (Figure 6.3) -->
+<div class="panel">
+  <div class="panel-header">
+    <div>
+      <h3 class="panel-title">Account List</h3>
+      <p class="panel-desc">Summary of active business and ledger accounts</p>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Account ID</th>
+          <th>Account Name</th>
+          <th>Type</th>
+          <th>Balance</th>
+          <th class="text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in accounts %}
+          {% set cur_bal = a.current_balance() %}
+          <tr>
+            <td><code class="code-badge">{{ a.code }}</code></td>
+            <td>
+              <strong>{{ a.name }}</strong>
+              {% if a.description %}
+                <small class="text-muted d-block">{{ a.description }}</small>
+              {% endif %}
+            </td>
+            <td><span class="badge badge-type">{{ a.type }}</span></td>
+            <td class="font-bold">₹ {{ "{:,.0f}".format(cur_bal) }}</td>
+            <td class="text-right actions-cell">
+              <button 
+                type="button" 
+                class="btn-link-action edit-btn"
+                onclick="openEditAccountModal('{{ a.id }}', '{{ a.name|escape }}', '{{ a.type|escape }}', '{{ a.opening_balance }}', '{{ a.description|escape }}')"
+              >Edit</button>
+              <span class="action-sep">|</span>
+              <a href="{{ url_for('ledger', account_id=a.id) }}" class="btn-link-action" title="View Ledger">Ledger</a>
+              <span class="action-sep">|</span>
+              <form method="post" action="{{ url_for('delete_account', id=a.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete account {{ a.name }}?')">
+                <button type="submit" class="btn-link-action text-danger">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">No accounts found.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Quick Add Account (Figure 6.3) -->
+<div class="panel" id="quick-add-form">
+  <div class="panel-header">
+    <div>
+      <h3 class="panel-title">Quick Add Account</h3>
+      <p class="panel-desc">Register a new asset, expense, income or liability ledger account</p>
+    </div>
+  </div>
+
+  <form method="post" action="{{ url_for('accounts') }}" class="form-row-grid">
+    <div class="form-group">
+      <label for="acc_name">Account Name *</label>
+      <input id="acc_name" name="name" type="text" placeholder="e.g. Petty Cash" required>
+    </div>
+
+    <div class="form-group">
+      <label for="acc_type">Account Type *</label>
+      <select id="acc_type" name="type" required>
+        <option value="">Select type</option>
+        <option value="Asset">Asset</option>
+        <option value="Bank">Bank</option>
+        <option value="Cash">Cash</option>
+        <option value="Income">Income</option>
+        <option value="Expense">Expense</option>
+        <option value="Liability">Liability</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="acc_open">Opening Balance (₹)</label>
+      <input id="acc_open" name="opening_balance" type="number" step="0.01" value="0.00">
+    </div>
+
+    <div class="form-group">
+      <label for="acc_desc">Description</label>
+      <input id="acc_desc" name="description" type="text" placeholder="Optional notes">
+    </div>
+
+    <div class="form-group form-btn-align">
+      <button type="submit" class="btn btn-primary btn-block">Save Account</button>
+    </div>
+  </form>
+</div>
+
+<!-- Edit Account Modal (Supports TC-04: Update account details) -->
+<div id="editAccountModal" class="modal-backdrop" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h4>Edit Account Details</h4>
+      <button type="button" class="close-btn" onclick="closeEditAccountModal()">&times;</button>
+    </div>
+    <form id="editAccountForm" method="post" action="">
+      <div class="modal-body">
+        <div class="form-group mb-3">
+          <label>Account Name</label>
+          <input id="modal_acc_name" name="name" type="text" required>
+        </div>
+        <div class="form-group mb-3">
+          <label>Account Type</label>
+          <select id="modal_acc_type" name="type" required>
+            <option value="Asset">Asset</option>
+            <option value="Bank">Bank</option>
+            <option value="Cash">Cash</option>
+            <option value="Income">Income</option>
+            <option value="Expense">Expense</option>
+            <option value="Liability">Liability</option>
+          </select>
+        </div>
+        <div class="form-group mb-3">
+          <label>Opening Balance (₹)</label>
+          <input id="modal_acc_open" name="opening_balance" type="number" step="0.01" required>
+        </div>
+        <div class="form-group mb-3">
+          <label>Description</label>
+          <textarea id="modal_acc_desc" name="description" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeEditAccountModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Update Account</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openEditAccountModal(id, name, type, openBal, desc) {
+    document.getElementById('editAccountForm').action = "/accounts/edit/" + id;
+    document.getElementById('modal_acc_name').value = name;
+    document.getElementById('modal_acc_type').value = type;
+    document.getElementById('modal_acc_open').value = openBal;
+    document.getElementById('modal_acc_desc').value = desc || '';
+    document.getElementById('editAccountModal').style.display = 'flex';
+  }
+  function closeEditAccountModal() {
+    document.getElementById('editAccountModal').style.display = 'none';
+  }
+</script>
 {% endblock %}
