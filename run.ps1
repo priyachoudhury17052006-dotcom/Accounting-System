@@ -1,4 +1,6 @@
 # Bank Accounting System - PowerShell Portable Launcher
+Set-Location -Path $PSScriptRoot
+
 Write-Host "==============================================================" -ForegroundColor Cyan
 Write-Host "          BANK ACCOUNTING SYSTEM (TYBSC CS SEM V)" -ForegroundColor Yellow
 Write-Host "             Portable Pen-Drive Edition - Plug & Play" -ForegroundColor Green
@@ -11,10 +13,10 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-if (-not (Test-Path ".venv\Scripts\python.exe")) {
-    Write-Host "[1/3] Creating virtual environment..." -ForegroundColor White
-    python -m venv .venv
-    & ".\.venv\Scripts\pip.exe" install -r requirements.txt
+$hasDeps = python -c "import flask, flask_sqlalchemy" 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[1/2] Installing required dependencies..." -ForegroundColor White
+    python -m pip install -r requirements.txt
 }
 
 Write-Host "`nLaunching server on: http://127.0.0.1:5000" -ForegroundColor Green
@@ -24,4 +26,4 @@ Write-Host "  - Admin:      admin / admin123" -ForegroundColor Yellow
 Write-Host "`nOpening default browser..." -ForegroundColor Gray
 
 Start-Process "http://127.0.0.1:5000"
-& ".\.venv\Scripts\python.exe" app.py
+python app.py
